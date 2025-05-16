@@ -39,7 +39,7 @@ class TaskbarApp:
         """
         self.window = tk.Tk()
         self.window.title("Taskbar Application")
-        self.window.geometry("300x200")
+        self.window.geometry("300x300")
 
         # Set the window icon
         try:
@@ -151,7 +151,7 @@ class TaskbarApp:
             self.window.withdraw()
             if self.icon is None:
                 self.buttons = {
-                    "Show" : pystray.MenuItem("Show", self.show_window),
+                    "Show" : pystray.MenuItem("Show", self.show_window, default=True),
                     "Start": pystray.MenuItem("Start", self.start, enabled=lambda x: not self.is_running),
                     "Stop": pystray.MenuItem("Stop", self.stop, enabled=lambda x: self.is_running),
                     "Quit": pystray.MenuItem("Quit", self.quit_app)
