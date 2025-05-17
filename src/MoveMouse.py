@@ -6,31 +6,12 @@ import threading
 import time
 import sys
 import traceback
-import pyautogui 
+import pyautogui
 import time
 import base64
 from io import BytesIO
 from images import base64image
-
-
-def image_to_base64_string(image_path):
-    """Converts an image to a base64 encoded string.
-
-    Args:
-        image_path (str): The path to the image file.
-
-    Returns:
-        str: The base64 encoded string of the image.
-    """
-    try:
-        with open(image_path, "rb") as image_file:
-            encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
-        return encoded_string
-    except FileNotFoundError:
-        return None
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        return None
+import random
 
 class TaskbarApp:
     def __init__(self):
@@ -57,11 +38,11 @@ class TaskbarApp:
         self.label = ttk.Label(self.window, text="Application is running...")
         self.label.pack(pady=20)
 
-        self.start_button = ttk.Button(self.window, text="Start", command=self.start)
+        self.start_button = ttk.Button(self.window, text="Start", command=self._start_handler)
         self.start_button.pack(pady=10)
-        self.stop_button = ttk.Button(self.window, text="Stop", command=self.stop)
+        self.stop_button = ttk.Button(self.window, text="Stop", command=self._stop_handler)
         self.stop_button.pack(pady=10)
-        self.stop_button.state(["disabled"]) 
+        self.stop_button.state(["disabled"])
         self.quit_button = ttk.Button(self.window, text="Quit", command=self.quit_app)
         self.quit_button.pack(pady=10)
 
@@ -73,56 +54,80 @@ class TaskbarApp:
             self.icon_image = Image.new('RGBA', (64, 64), color=(0, 0, 0, 0))
 
         self.icon = None
-        self.is_running = False
-        self.thread = None
+        self._is_running = False  # Use a private variable
+        self._thread = None     # Use a private variable
         self.stop_event = threading.Event()
         self.thread_exception = None
-        self.main_thread_id = threading.get_ident() # Store main thread ID
-        self.is_quitting = False # Add a flag to track quitting state
+        self.main_thread_id = threading.get_ident()
+        self.is_quitting = False
 
         self.window.protocol("WM_DELETE_WINDOW", self.hide_to_tray)
         self.window.withdraw()
 
+    def _start_handler(self):
+        """Handles the start button click, preventing multiple starts."""
+        if not self._is_running:
+            self.start()
+
+    def _stop_handler(self):
+        """Handles the stop button click, preventing multiple stops."""
+        if self._is_running:
+            self.stop()
 
     def start(self):
         """Starts the background thread."""
-        if self.is_running:
-            return
-        self.start_button.state(["disabled"]) 
-        self.is_running = True
-        self.label.config(text="Application started...")
-        print("Start button clicked. Application started.")
+        if self._is_running or self._thread is not None and self._thread.is_alive():
+            return  # Prevent starting if already running or still stopping
+        self.start_button.state(["disabled"])
+        self._is_running = True
+        self.label.config(text="Application starting...")
+        print("Start button clicked. Application starting.")
         self.stop_event.clear()
         self.thread_exception = None
-        self.thread = threading.Thread(target=self.background_task, daemon=True)
-        self.thread.start()
-        self.stop_button.state(["!disabled"]) 
+        self._thread = threading.Thread(target=self.background_task, daemon=True)
+        self._thread.start()
+        self.stop_button.state(["!disabled"])
+        self.label.config(text="Application started...")
 
     def stop(self):
         """Stops the background thread."""
-        if not self.is_running:
-            return
-        self.stop_button.state(["disabled"]) 
-        self.is_running = False
-        self.label.config(text="Application stopped.")
-        print("Stop button clicked. Application stopped.")
+        if not self._is_running or self._thread is None or not self._thread.is_alive():
+            return  # Prevent stopping if not running or thread not active
+        self.stop_button.state(["disabled"])
+        self._is_running = False
+        self.label.config(text="Stopping application...")
+        print("Stop button clicked. Requesting application stop.")
         self.stop_event.set()
-        if self.thread:
-            self.thread.join(timeout=5)
-            if self.thread.is_alive():
-                print("Warning: Background thread did not stop in time.")
-            else:
-                self.thread = None
-        self.start_button.state(["!disabled"]) 
+        self.window.after(100, self._check_thread_status)
+        self.start_button.state(["!disabled"])
+
+    def _check_thread_status(self):
+        """Checks if the background thread has finished."""
+        if self._thread and self._thread.is_alive():
+            self.window.after(100, self._check_thread_status)
+        else:
+            self._thread = None
+            self.label.config(text="Application stopped.")
+            print("Background task stopped.")
+            if self.thread_exception:
+                print(f"Exception in background thread: {self.thread_exception}")
+                traceback.print_exc()
 
     def background_task(self):
         """Simulates a background task."""
         try:
             while not self.stop_event.is_set():
                 print("Background task running...")
-                pyautogui.move(1,1)
+                x = random.randint(0, 1)
+                y = random.randint(0, 1)
+                if x==0 and y==0:
+                    if random.randint(0, 1)==0:
+                        x = 1
+                    else:
+                        y = 1
+                pyautogui.move(x,y)
                 pyautogui.press('shift')
-                time.sleep(10)
+                time.sleep(25)
         except Exception as e:
             print(f"Error in background task: {e}")
             self.thread_exception = e
@@ -152,8 +157,8 @@ class TaskbarApp:
             if self.icon is None:
                 self.buttons = {
                     "Show" : pystray.MenuItem("Show", self.show_window, default=True),
-                    "Start": pystray.MenuItem("Start", self.start, enabled=lambda x: not self.is_running),
-                    "Stop": pystray.MenuItem("Stop", self.stop, enabled=lambda x: self.is_running),
+                    "Start": pystray.MenuItem("Start", self._start_handler, enabled=lambda x: not self._is_running),
+                    "Stop": pystray.MenuItem("Stop", self._stop_handler, enabled=lambda x: self._is_running),
                     "Quit": pystray.MenuItem("Quit", self.quit_app)
                 }
                 self.icon = pystray.Icon(
@@ -183,12 +188,12 @@ class TaskbarApp:
     def quit_app(self, icon=None, item=None):
         """Quits the application."""
         if self.is_quitting:
-            return  # Prevent multiple quit attempts
+            return
         self.is_quitting = True
         print("Quit requested")
-        self.stop() # Stop the background thread.
+        self.stop()
 
-        def _cleanup(): # Encapsulate cleanup
+        def _cleanup():
             if self.icon:
                 try:
                     self.icon.stop()
