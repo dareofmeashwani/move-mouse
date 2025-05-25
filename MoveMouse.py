@@ -12,16 +12,23 @@ import base64
 from io import BytesIO
 from images import base64image
 import random
+import platform
 
 class TaskbarApp:
     def __init__(self):
         """
         Initializes the TaskbarApp.
         """
+        system_name = platform.system()
         self.window = tk.Tk()
         self.window.title("Taskbar Application")
         self.window.geometry("300x300")
-
+        if system_name == "Windows":
+            self.window.wm_attributes('-toolwindow', True)
+        elif system_name == "Darwin":
+            pass
+        elif system_name == "Linux":
+            self.window.wm_attributes('-type', 'dock')
         # Set the window icon
         try:
             img_bytes = base64.b64decode(base64image)
