@@ -21,7 +21,7 @@ class TaskbarApp:
         """
         system_name = platform.system()
         self.window = tk.Tk()
-        self.window.title("Taskbar Application")
+        self.window.title("Move Mouse")
         self.window.geometry("300x300")
         if system_name == "Windows":
             self.window.wm_attributes('-toolwindow', True)
@@ -169,9 +169,9 @@ class TaskbarApp:
                     "Quit": pystray.MenuItem("Quit", self.quit_app)
                 }
                 self.icon = pystray.Icon(
-                    "TaskbarApp",
+                    "MoveMouse",
                     self.icon_image,
-                    "Taskbar Application",
+                    "Move Mouse",
                     menu=pystray.Menu(
                         self.buttons["Show"],
                         self.buttons["Start"],
