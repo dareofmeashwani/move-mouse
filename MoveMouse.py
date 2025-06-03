@@ -14,6 +14,7 @@ from images import base64image
 import random
 import platform
 
+
 class TaskbarApp:
     def __init__(self):
         """
@@ -24,17 +25,19 @@ class TaskbarApp:
         self.window.title("Move Mouse")
         self.window.geometry("300x300")
         if system_name == "Windows":
-            self.window.wm_attributes('-toolwindow', True)
+            self.window.wm_attributes("-toolwindow", True)
         elif system_name == "Darwin":
             pass
         elif system_name == "Linux":
-            self.window.wm_attributes('-type', 'dock')
+            self.window.wm_attributes("-type", "dock")
         # Set the window icon
         try:
             img_bytes = base64.b64decode(base64image)
             img = Image.open(BytesIO(img_bytes))
             buffer = BytesIO()
-            img.save(buffer, format="png")  # You can choose other formats if Tkinter supports them
+            img.save(
+                buffer, format="png"
+            )  # You can choose other formats if Tkinter supports them
             buffer.seek(0)
             icon_img = tk.PhotoImage(data=buffer.read())  # Use a .png file
             self.window.iconphoto(True, icon_img)
@@ -45,9 +48,13 @@ class TaskbarApp:
         self.label = ttk.Label(self.window, text="Application is running...")
         self.label.pack(pady=20)
 
-        self.start_button = ttk.Button(self.window, text="Start", command=self._start_handler)
+        self.start_button = ttk.Button(
+            self.window, text="Start", command=self._start_handler
+        )
         self.start_button.pack(pady=10)
-        self.stop_button = ttk.Button(self.window, text="Stop", command=self._stop_handler)
+        self.stop_button = ttk.Button(
+            self.window, text="Stop", command=self._stop_handler
+        )
         self.stop_button.pack(pady=10)
         self.stop_button.state(["disabled"])
         self.quit_button = ttk.Button(self.window, text="Quit", command=self.quit_app)
@@ -58,18 +65,47 @@ class TaskbarApp:
             self.icon_image = Image.open(BytesIO(img_bytes))
         except FileNotFoundError:
             print("Error: icon.png not found. Using a placeholder.")
-            self.icon_image = Image.new('RGBA', (64, 64), color=(0, 0, 0, 0))
+            self.icon_image = Image.new("RGBA", (64, 64), color=(0, 0, 0, 0))
 
         self.icon = None
         self._is_running = False  # Use a private variable
-        self._thread = None     # Use a private variable
+        self._thread = None  # Use a private variable
         self.stop_event = threading.Event()
         self.thread_exception = None
         self.main_thread_id = threading.get_ident()
         self.is_quitting = False
 
         self.window.protocol("WM_DELETE_WINDOW", self.hide_to_tray)
+        self.window.bind("<Unmap>", self.on_unmap)
+        self.window.bind("<Map>", self.on_map)
         self.window.withdraw()
+        self._start_handler()
+
+    def on_unmap(self, event):
+        """
+        Handles the window being unmapped (minimized, maximized, or hidden).
+        """
+        if self.window.wm_state() == 'iconic':
+            # This means the window is minimized to the taskbar.
+            # We want to hide it to the tray instead.
+            self.hide_to_tray()
+        elif self.window.wm_state() == 'normal':
+            # This case might be triggered by maximizing to full screen,
+            # then restoring to normal from the title bar.
+            # The 'show_window' method will ensure it's visible and not in tray.
+            self.show_window()
+        # For maximizing, the state will typically change to 'zoomed' on Windows,
+        # or still 'normal' but filling the screen. The <Map> event usually
+        # handles bringing it back to the foreground if it was hidden.
+
+    def on_map(self, event):
+        """
+        Handles the window being mapped (shown).
+        """
+        # When the window is mapped, ensure it's visible and not in the tray.
+        # This handles maximization from the taskbar icon or other means.
+        if self.icon and self.icon.visible:
+            self.show_window()
 
     def _start_handler(self):
         """Handles the start button click, preventing multiple starts."""
@@ -127,13 +163,13 @@ class TaskbarApp:
                 print("Background task running...")
                 x = random.randint(0, 1)
                 y = random.randint(0, 1)
-                if x==0 and y==0:
-                    if random.randint(0, 1)==0:
+                if x == 0 and y == 0:
+                    if random.randint(0, 1) == 0:
                         x = 1
                     else:
                         y = 1
-                pyautogui.move(x,y)
-                pyautogui.press('shift')
+                pyautogui.move(x, y)
+                pyautogui.press("shift")
                 time.sleep(25)
         except Exception as e:
             print(f"Error in background task: {e}")
@@ -144,29 +180,38 @@ class TaskbarApp:
 
     def show_window(self):
         """Shows the main window."""
+
         def _show_window():
             if self.is_quitting:
                 return
             self.window.deiconify()
             if self.icon:
                 self.icon.visible = False
+
         if threading.get_ident() != self.main_thread_id:
-             self.window.after(0, _show_window)
+            self.window.after(0, _show_window)
         else:
-             _show_window()
+            _show_window()
 
     def hide_to_tray(self):
         """Hides the main window and minimizes to the system tray."""
+
         def _hide_to_tray():
             if self.is_quitting:
                 return
             self.window.withdraw()
             if self.icon is None:
                 self.buttons = {
-                    "Show" : pystray.MenuItem("Show", self.show_window, default=True),
-                    "Start": pystray.MenuItem("Start", self._start_handler, enabled=lambda x: not self._is_running),
-                    "Stop": pystray.MenuItem("Stop", self._stop_handler, enabled=lambda x: self._is_running),
-                    "Quit": pystray.MenuItem("Quit", self.quit_app)
+                    "Show": pystray.MenuItem("Show", self.show_window, default=True),
+                    "Start": pystray.MenuItem(
+                        "Start",
+                        self._start_handler,
+                        enabled=lambda x: not self._is_running,
+                    ),
+                    "Stop": pystray.MenuItem(
+                        "Stop", self._stop_handler, enabled=lambda x: self._is_running
+                    ),
+                    "Quit": pystray.MenuItem("Quit", self.quit_app),
                 }
                 self.icon = pystray.Icon(
                     "MoveMouse",
@@ -176,7 +221,7 @@ class TaskbarApp:
                         self.buttons["Show"],
                         self.buttons["Start"],
                         self.buttons["Stop"],
-                        self.buttons["Quit"]
+                        self.buttons["Quit"],
                     ),
                 )
                 try:
@@ -234,6 +279,7 @@ class TaskbarApp:
         """Runs the application."""
         self.hide_to_tray()
         self.window.mainloop()
+
 
 if __name__ == "__main__":
     app = TaskbarApp()
