@@ -24,6 +24,8 @@ class TaskbarApp:
         self.window = tk.Tk()
         self.window.title("Move Mouse")
         self.window.geometry("300x300")
+        style = ttk.Style()
+        style.configure("Faded.TButton", parent="TButton", background="#D0D0D0", foreground="#A0A0A0")
         if system_name == "Windows":
             self.window.wm_attributes("-toolwindow", True)
         elif system_name == "Darwin":
@@ -81,6 +83,11 @@ class TaskbarApp:
         self.window.withdraw()
         self._start_handler()
 
+    def toggle_fade_by_color(self, button, state):
+        if state:
+            button.config(style="Faded.TButton")
+        else:
+            button.config(style="TButton")
     def on_unmap(self, event):
         """
         Handles the window being unmapped (minimized, maximized, or hidden).
@@ -122,6 +129,7 @@ class TaskbarApp:
         if self._is_running or self._thread is not None and self._thread.is_alive():
             return  # Prevent starting if already running or still stopping
         self.start_button.state(["disabled"])
+        self.toggle_fade_by_color(self.start_button, True)
         self._is_running = True
         self.label.config(text="Application starting...")
         print("Start button clicked. Application starting.")
@@ -130,6 +138,7 @@ class TaskbarApp:
         self._thread = threading.Thread(target=self.background_task, daemon=True)
         self._thread.start()
         self.stop_button.state(["!disabled"])
+        self.toggle_fade_by_color(self.stop_button, False)
         self.label.config(text="Application started...")
 
     def stop(self):
@@ -137,12 +146,14 @@ class TaskbarApp:
         if not self._is_running or self._thread is None or not self._thread.is_alive():
             return  # Prevent stopping if not running or thread not active
         self.stop_button.state(["disabled"])
+        self.toggle_fade_by_color(self.stop_button, True)
         self._is_running = False
         self.label.config(text="Stopping application...")
         print("Stop button clicked. Requesting application stop.")
         self.stop_event.set()
         self.window.after(100, self._check_thread_status)
         self.start_button.state(["!disabled"])
+        self.toggle_fade_by_color(self.start_button, False)
 
     def _check_thread_status(self):
         """Checks if the background thread has finished."""
