@@ -29,7 +29,11 @@ class TaskbarApp:
         if system_name == "Windows":
             self.window.wm_attributes("-toolwindow", True)
         elif system_name == "Darwin":
-            pass
+            try:
+                from AppKit import NSApp, NSApplicationActivationPolicyAccessory
+                NSApp.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
+            except ImportError:
+                pass
         elif system_name == "Linux":
             self.window.wm_attributes("-type", "dock")
         # Set the window icon
@@ -181,7 +185,7 @@ class TaskbarApp:
                         y = 1
                 pyautogui.move(x, y)
                 pyautogui.press("shift")
-                time.sleep(25)
+                time.sleep(10)
         except Exception as e:
             print(f"Error in background task: {e}")
             self.thread_exception = e
